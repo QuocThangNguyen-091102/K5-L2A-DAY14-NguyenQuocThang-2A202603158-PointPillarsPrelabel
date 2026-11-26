@@ -48,19 +48,17 @@ def clickhouse_events(job: int) -> list[dict]:
 
 def load_events(job: int, logs: list[str]) -> list[dict]:
     evs = clickhouse_events(job)
-    seen = {(e["scope"], e.get("obj_name"), round(ts(e["timestamp"] + ("Z" if "+" not in e["timestamp"] else "")), 2))
-            for e in evs}
-    for path in logs:
-        for e in json.loads(Path(path).read_text(encoding="utf-8")):
-            key = (e["scope"], e.get("obj_name"), round(ts(e["timestamp"]), 2))
-            if key not in seen:
-                evs.append(e)
-                seen.add(key)
+    has_userscript = any(e.get("obj_name") in ("canvas-click", "keydown") for e in evs)
+    if not has_userscript:           # server chưa nhận event của userscript -> lấy từ file tải về
+        for path in logs:
+            evs += json.loads(Path(path).read_text(encoding="utf-8"))
     for e in evs:
         t = e["timestamp"]
         e["t"] = ts(t if ("Z" in t or "+" in t) else t + "Z")
         e["p"] = json.loads(e["payload"]) if e.get("payload") else {}
-    return sorted(evs, key=lambda e: e["t"])
+    evs.sort(key=lambda e: e["t"])
+    loads = [i for i, e in enumerate(evs) if e["scope"] == "load:job"]
+    return evs[loads[0]:] if loads else evs   # phiên bắt đầu khi người dùng mở job
 
 
 def analyse(evs: list[dict], idle: float, merge: float):
