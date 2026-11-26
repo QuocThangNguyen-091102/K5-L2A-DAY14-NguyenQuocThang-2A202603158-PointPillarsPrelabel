@@ -4,11 +4,18 @@ Với từng frame, ghép 1-1 (Hungarian, BEV IoU >= 0.3, cùng hàm match_boxes
 CVAT với hộp đề xuất, rồi làm đúng 3 thao tác của người sửa nhãn:
 
 * hộp CVAT không ghép được          -> XÓA (hộp thừa)
-* ghép được nhưng lệch quá ngưỡng   -> SỬA vị trí/kích thước/hướng/lớp theo đề xuất (giữ pp_id, note=auto-edit)
-  (ngưỡng = needs_edit của lab: sai lớp, tâm > 0.3 m, cạnh > 0.2 m, hướng > 10°)
+* ghép được                         -> SỬA TỐI THIỂU như người gán nhãn: giữ hộp đang có, chỉ đổi đúng
+  thuộc tính sai so với đề xuất (giữ pp_id, note=auto-edit):
+    - lớp khác                        -> lấy lớp đề xuất
+    - tâm lệch > 0.3 m                -> lấy tâm đề xuất
+    - hướng lệch > 10° hoặc ngược đầu -> lấy hướng đề xuất (đề xuất có hướng theo chuyển động)
+    - kích thước ngoài dung sai guideline mục 2.5 (±5% xe, ±10% người/xe 2 bánh) -> lấy kích thước đề xuất
+    - đáy hộp lệch mặt đường đề xuất > 0.15 m -> hạ/nâng đáy về mặt đường
+  Kích thước trong dung sai thì giữ: hai model có quy ước kích thước khác nhau (CenterPoint/nuScenes dài
+  hơn PointPillars/KITTI ~0.3 m), người kiểm không kéo lại hộp đã vừa trong dung sai.
 * đề xuất không ghép được           -> THÊM cuboid dạng Shape (note=auto-add)
 
-Hộp ghép được và đã đạt ngưỡng thì giữ nguyên. Sau đó người kiểm mở CVAT xem lại rồi xuất bằng
+Hộp không cần đổi gì thì giữ nguyên. Sau đó người kiểm mở CVAT xem lại rồi xuất bằng
 ``scripts/vf_cvat.py reference``. Mặc định chạy thử; thêm --apply để ghi lên CVAT.
 
     CVAT_PASSWORD=... python tools/d14_apply_review.py --student <ID> --task A --proposal out/autoref_A.json \
@@ -28,7 +35,29 @@ sys.path.insert(0, str(ROOT))
 
 from scripts import vf_common as vf  # noqa: E402
 from scripts.vf_cvat import connect, cuboid_points, d14_task_name, find_tasks  # noqa: E402
-from vf_pp.core import needs_edit  # noqa: E402
+import math  # noqa: E402
+
+TOL = {"Car": 0.05, "Truck": 0.05, "Bus": 0.05, "Pedestrian": 0.10, "Cyclist": 0.10}  # guideline mục 2.5
+
+
+def minimal_fix(cur: dict, prop: dict) -> dict | None:
+    """Hộp sau khi sửa tối thiểu, hoặc None nếu không cần đổi gì."""
+    new = dict(cur)
+    if cur["label"] != prop["label"]:
+        new["label"] = prop["label"]
+    if math.hypot(cur["x"] - prop["x"], cur["y"] - prop["y"]) > 0.3:
+        new["x"], new["y"] = prop["x"], prop["y"]
+    dyaw = abs((cur["yaw"] - prop["yaw"] + math.pi) % (2 * math.pi) - math.pi)   # có tính lật đầu 180°
+    if dyaw > math.radians(10):
+        new["yaw"] = prop["yaw"]
+    tol = TOL[prop["label"]]
+    if any(abs(cur[k] - prop[k]) > tol * prop[k] for k in ("length", "width", "height")):
+        new["length"], new["width"], new["height"] = prop["length"], prop["width"], prop["height"]
+    bottom, prop_bottom = cur["z"] - cur["height"] / 2, prop["z"] - prop["height"] / 2
+    if abs(bottom - prop_bottom) > 0.15 or new["height"] != cur["height"]:
+        new["z"] = prop_bottom + new["height"] / 2
+    changed = any(new[k] != cur[k] for k in ("label", "x", "y", "z", "yaw", "length", "width", "height"))
+    return new if changed else None
 
 
 def main(argv=None) -> int:
@@ -86,9 +115,10 @@ def main(argv=None) -> int:
                 to_delete.append(s.id)
                 n_del += 1
         for gi, pj, _ in pairs:
-            if not needs_edit(prop[gi], cur[pj]):
+            p = minimal_fix(cur[pj], prop[gi])
+            if p is None:
                 continue
-            s, p = shapes[pj], prop[gi]
+            s = shapes[pj]
             old_spec = {a.id: a.name for a in labels[label_name[s.label_id]].attributes}
             old = {old_spec.get(a.spec_id, ""): a.value for a in s.attributes}
             to_update.append(models.LabeledShapeRequest(
