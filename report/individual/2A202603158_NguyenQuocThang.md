@@ -105,10 +105,74 @@ Ngoài pre-label PointPillars của lab, tôi dùng các công cụ sau để t�
    - Xóa hộp không ghép được và thêm hộp bị sót (dạng Shape).
    - Với hộp ghép được, chỉ sửa đúng thuộc tính sai: lớp, tâm lệch trên 0,3 m, hướng lệch trên 10° hoặc ngược đầu, kích thước ngoài dung sai guideline, đáy hộp.
    - `ref_A.json` và `ref_B.json` sau đó được xuất bằng đúng lệnh `scripts/vf_cvat.py reference` của lab. Số hộp khớp số Items trên CVAT.
-3. **Soát ảnh camera với trợ lý AI (Claude).**
+3. 
    - Đề xuất được vẽ lên 7 camera bằng `tools/d14_render.py` và soát cả 15 frame.
    - Lần soát này phát hiện các lỗi của bộ lọc và tôi đã sửa luật: van xanh bị loại nhầm ở s05f43, xe buýt bị loại nhầm ở s01f13, người đi xe máy bị loại nhầm ở s03f06, Bus/Truck giả trên bồn cây ở s03f33 và s04f54, người giả ở thân cây ở s03f53.
    - Ba trường hợp được thêm hoặc xóa tay, có lý do và tọa độ trong `tools/d14_manual_review.json`: thêm công nhân ở s04f54, thêm người ở nhà chờ xe buýt và xóa hộp Car bao nhà chờ ở s01f13, thêm xe ben (Truck) ở s05f15.
 4. **Kiểm định và giới hạn của công cụ.**
    - Trên 10 frame Day 13 của tôi, bản chưa lọc của công cụ trùng gần như toàn bộ bảng A Day 13 (chi phí 3,2), vì bảng A Day 13 cũng làm từ chính model này. Phép kiểm định này vòng tròn, không chứng minh độ đúng.
    - Khi soát ảnh, tôi thấy bảng A Day 13 còn giữ nhiều Truck giả trên hàng cây, ví dụ ở s02f46. Vì vậy tôi không dùng nó làm thước đo, và bộ lọc mới loại thêm các hộp đó.
+
+## 7. Điểm cộng
+
+### Hướng 2: PointPillars chạy trong CVAT (Nuclio), đã chạy được
+
+Chi tiết, các bước và lệnh nằm ở [`bonus/nuclio-pp/README.md`](../../bonus/nuclio-pp/README.md). Video ở [`bonus/nuclio-pp/demo.webm`](../../bonus/nuclio-pp/demo.webm). Function `pp-2a202603158` (Nuclio 1.16.3, PyTorch CPU, dùng `vf_pp` của lab) được CVAT gọi qua `POST /api/lambda/requests` trên task 3D riêng `D14-2A202603158-A-nuclio`. Task này gồm 3 frame tập A; tôi không dùng task nộp bài vì `cleanup` sẽ xóa nhãn.
+
+| Frame | Box CVAT | Box offline (`pred_A.json`) | Trùng tâm ≤ 0,5 m (cùng lớp) |
+|---|---:|---:|---:|
+| s02f51 | 45 | 48 | 45 |
+| s03f43 | 34 | 32 | 31 |
+| s05f27 | 28 | 30 | 28 |
+| **Tổng** | **107** | **110** | **104** |
+
+Kết quả không giống hệt offline. PCD trong CVAT chỉ giữ intensity dưới dạng mức xám nén log và đã làm tròn, nên `main.py` chỉ đảo ngược ra giá trị xấp xỉ. Chạy cùng handler ngay trên máy với PCD tạo bằng `bin_to_pcd` cho đúng 45/34/28 box như trong CVAT. Như vậy chênh lệch nằm ở intensity, không nằm ở phần tích hợp CVAT.
+
+### Hướng 1: đo thao tác sửa nhãn
+
+**Cách thu dữ liệu.** Tôi tự sửa nhãn trên task riêng `D14-2A202603158-B-telemetry` (task 22, job 22). Task gồm 4 frame tập B với pre-label `best_config` (s01f13, s04f54, s05f00, s05f43), nên sửa ở đây không ảnh hưởng `ref_B.json`. Userscript `bonus/cvat-telemetry-addon.user.js` được nạp tự động vào trình duyệt bằng [`bonus/start_telemetry_session.py`](../../bonus/start_telemetry_session.py), thay cho bước cài Tampermonkey. Script này chỉ đăng nhập và mở job; mọi click và phím là của tôi. Log tải về: [`bonus/telemetry/`](../../bonus/telemetry/). Bảng metric: [`d14_2A202603158/telemetry.csv`](../../d14_2A202603158/telemetry.csv).
+
+**Mức Cơ bản** (`python bonus/telemetry_metrics.py ... --csv d14_2A202603158/telemetry.csv`):
+
+| Click trên canvas | Phím tắt | Độ dài phiên | Trung vị khoảng cách thời gian giữa 2 click | Khoảng cách chuột TB giữa 2 click | Tỉ lệ dùng bàn phím | Phím dùng |
+|---:|---:|---:|---:|---:|---:|---|
+| 89 | 3 | 277 s (≈ 4,6 phút) | 2,0 s | 140 px | 3% | `Ctrl+z` × 2, `Delete` × 1 |
+
+Đã sửa 4 hộp so với pre-label, đo bằng `correction_cost` của lab giữa nhãn cuối của job 22 và `pred_B.json`:
+
+- **xóa 1:** Cyclist thừa ở s01f13, cách 19 m.
+- **thêm 2:** hai Car ở s05f43, cách 11 m và 18 m.
+- **sửa 1:** dời một Car ở s05f43 khoảng 0,8 m.
+
+Chi phí theo công thức là 2,8. s05f00 chỉ xem, không sửa. **s04f54 tôi chưa mở** (nhảy từ frame 0 sang frame 2), nên không có dữ liệu cho frame này.
+
+**Mức Khá: theo frame và theo đoạn công việc** ([`bonus/telemetry_episodes.py`](../../bonus/telemetry_episodes.py)). Ranh giới đoạn lấy từ dòng thời gian event của CVAT: mở job, `delete:object`, `change:frame`, nút Shape, `draw:object`, `save:job`.
+
+| Đoạn | Giây | Click canvas | Phím tắt |
+|---|---:|---:|---:|
+| Xóa 1 Cyclist thừa (s01f13): mở job → phím Delete | 63 | 18 | 1 |
+| Xem s05f00, không sửa gì | 27 | 14 | 0 |
+| Thêm Car #1 (s05f43): vào frame → Shape → căn hộp → Save | 90 | 20 | 1 |
+| Thêm Car #2 + dời 1 Car có sẵn (s05f43) | 74 | 25 | 1 |
+| Kiểm lại, undo/redo, Save | 28 | 12 | 0 |
+| **Tổng** | **282** | **89** | **3** |
+
+- Tôi gần như chỉ dùng chuột: 3% phím tắt, chủ yếu `Ctrl+z` để hoàn tác khi căn hộp lệch.
+- Click dày, trung vị 2 giây giữa hai click, phần lớn là xoay và kéo view 3D để nhìn vật.
+- Tôi phải chia đoạn bằng tay vì hai lý do: CVAT 3D không ghi `drag/resize` khi chỉnh cuboid (các lần chỉnh chỉ hiện dưới dạng "Changed points" trong undo/redo), và với lượt thêm, phần lớn công nằm *sau* event `draw:object`. Bảng gán tự động của `bonus/telemetry_analysis.py` vì thế không dùng được cho lượt thêm.
+
+**Mức Wow: đối chiếu với trọng số 0,3/1/0,5**
+
+- **Thêm** tốn khoảng **74–90 giây và 20–25 click mỗi hộp**, gồm tìm vật, vẽ, căn trên Top/Side/Front và Save. Đây là thao tác đắt nhất, đúng như trọng số 1,0.
+- **Xóa**: bản thân thao tác chỉ là 1 phím `Delete`, rất rẻ so với thêm. Nếu chỉ tính thao tác thì 0,3 còn là *cao*. Nhưng đoạn kết thúc bằng lượt xóa vẫn mất 63 giây và 18 click, vì phải xoay view và đối chiếu để chắc hộp đó là thừa. Đoạn này cũng gồm thời gian làm quen lúc mới mở job. Công của một lượt xóa nằm ở **việc kiểm**, không ở việc bấm.
+- **Sửa**: chỉ có 1 lượt, lẫn trong cùng đoạn với lượt thêm thứ hai, nên **không tách riêng được**. Tôi không có cơ sở để xác nhận hay bác bỏ trọng số 0,5.
+- **Công thức bỏ sót việc xem.** s05f00 không sửa gì nên chi phí theo công thức bằng 0, nhưng vẫn tốn 27 giây và 14 click để rà 15 hộp. Thời gian đó bằng khoảng 0,3–0,4 lần một lượt thêm.
+- **Đề xuất, chỉ là giả thuyết:** giữ thêm = 1,0. Giữ xóa ở 0,3 nếu chỉ tính thao tác, hoặc nâng lên khoảng 0,5–0,7 nếu tính cả công kiểm. Cộng thêm một hạng "rà frame" cố định khoảng 0,3–0,4 cho mỗi frame. Như vậy chi phí sẽ phản ánh rằng pre-label càng sạch thì vẫn tốn công rà, không bao giờ về 0.
+
+**Giới hạn của dữ liệu**, nên không thể xem đây là kết luận:
+
+- Chỉ một người, một phiên khoảng 4,6 phút. Chỉ có 1 lượt xóa, 2 lượt thêm và 1 lượt sửa, và chưa mở s04f54.
+- Đoạn đầu tiên gồm cả thời gian làm quen giao diện, nên thời gian của lượt xóa bị thổi phồng.
+- Ranh giới đoạn do tôi chia từ dòng thời gian event, không phải đo trực tiếp từng thao tác.
+- Hai hộp Car tôi thêm có chiều dài và chiều rộng bị đảo (1,89 × 5,26 m), tức hướng lệch 90°, chưa căn kỹ. Một lượt thêm làm cẩn thận theo guideline sẽ còn tốn hơn, nên 74–90 giây là cận dưới.
+- Mức độ quen tay với CVAT 3D ảnh hưởng mạnh tới thời gian. Không quy đổi các số này ra "giờ công tiết kiệm".
