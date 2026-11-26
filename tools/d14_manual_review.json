@@ -1,0 +1,26 @@
+{
+ "note": "Quyết định thêm/xóa tay sau khi soát ảnh camera (tools/d14_render.py). Mỗi mục có lý do và bằng chứng.",
+ "add": [
+  {
+   "frame": "s04f54",
+   "box": {"label": "Pedestrian", "x": -23.24, "y": 21.2, "z": -0.59, "length": 0.6, "width": 0.6, "height": 1.7, "yaw": 0.0},
+   "why": "Công nhân áo phản quang thấy rõ trên cam09 (pixel ~175,598). CenterPoint không phát hiện. Cụm 12 điểm, mặt đất cục bộ -1.44 m, đỉnh điểm 0.14 m."
+  },
+  {
+   "frame": "s01f13",
+   "box": {"label": "Pedestrian", "x": -7.199, "y": 6.179, "z": -0.506, "length": 0.654, "width": 0.672, "height": 1.775, "yaw": 0.407},
+   "why": "Người đứng ở nhà chờ xe buýt, thấy trên cam09 bên trái. CenterPoint phát hiện (0.36) nhưng bộ lọc tán cây loại nhầm vì mái nhà chờ ở phía trên."
+  },
+  {
+   "frame": "s05f15",
+   "box": {"label": "Truck", "x": -1.63, "y": 38.96, "z": -0.27, "length": 11.7, "width": 2.9, "height": 3.5, "yaw": 1.53},
+   "why": "Xe ben xanh phía sau thấy rõ trên cam09 (pixel ~915,618). CenterPoint phát hiện là bus (0.32, chiếu vào cam09 tại 933,608) nhưng bị lọc vì điểm thấp; đổi lớp thành Truck theo guideline (xe ben)."
+  }
+ ],
+ "delete": [
+  {
+   "frame": "s01f13", "x": -17.72, "y": 20.45,
+   "why": "Hộp Car bao nhà chờ xe buýt (cụm điểm cao tới 3.9 m, đáy hộp lơ lửng 0.5 m trên mặt đất); camera cam08 không có xe ở đây."
+  }
+ ]
+}
