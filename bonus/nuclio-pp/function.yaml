@@ -1,0 +1,45 @@
+metadata:
+  name: pp-2a202603158
+  namespace: nuclio
+  annotations:
+    name: PointPillars KITTI (Day 14, 2A202603158)
+    type: detector
+    framework: pytorch
+    supported_shape_types: cuboid
+    spec: |
+      [
+        {"id": 1, "name": "Car", "type": "cuboid"},
+        {"id": 2, "name": "Truck", "type": "cuboid"},
+        {"id": 3, "name": "Bus", "type": "cuboid"},
+        {"id": 4, "name": "Cyclist", "type": "cuboid"},
+        {"id": 5, "name": "Pedestrian", "type": "cuboid"}
+      ]
+
+spec:
+  description: PointPillars KITTI (vf_pp của lab Day 14, CPU, không cần CUDA) cho task 3D VF
+  runtime: python:3.10
+  handler: main:handler
+  eventTimeout: 300s
+
+  build:
+    image: cvat.pp-2a202603158
+    baseImage: python:3.10-slim
+    directives:
+      preCopy:
+        - kind: RUN
+          value: pip install --no-cache-dir numpy torch --index-url https://download.pytorch.org/whl/cpu --extra-index-url https://pypi.org/simple
+
+  triggers:
+    myHttpTrigger:
+      kind: http
+      numWorkers: 1
+      workerAvailabilityTimeoutMilliseconds: 10000
+      attributes:
+        maxRequestBodySize: 33554432   # PCD của lab ~2-4 MB, base64 lớn hơn mặc định 4 MB
+
+  platform:
+    attributes:
+      restartPolicy:
+        name: always
+        maximumRetryCount: 3
+      mountMode: volume
