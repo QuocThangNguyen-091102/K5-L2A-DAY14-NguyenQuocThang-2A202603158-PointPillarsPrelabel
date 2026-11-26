@@ -57,7 +57,7 @@ Viết trước khi chạy `scripts/pp_sweep.py`, chỉ dựa trên ảnh BEV/ca
   - Ảnh s02f51 cho thấy rõ nhất: gần như toàn bộ hộp đỏ dọc hai hàng cây biến mất, còn hộp xanh dương (vật bị sót) giữ nguyên. Tăng ngưỡng chỉ bớt việc xóa, không giúp gì cho việc thêm.
 - **Ghi chú về số trong mục 1.** Mục 1 ghi 53,5 và sửa 23. Đó là số của bản `ref_A.json` đầu tiên, trong đó mọi hộp ghép được đều lấy nguyên kích thước của model tham chiếu. Sau sweep lần đầu, tôi thấy phần lớn lượt "sửa" ở tập B đến từ chênh kích thước Car giữa hai model. Tôi đổi sang cách sửa tối thiểu như người gán nhãn: giữ kích thước nằm trong dung sai ±5%/±10% của guideline mục 2.5, rồi xuất lại `ref_A.json` và chạy lại sweep.
   - Thay đổi rất nhỏ: chi phí gốc 53,5 → 53,0, cấu hình chọn giữ nguyên.
-  - Cả hai phiên bản đều nằm trong lịch sử commit (commit `Bước 6-9 (v1)`). Mục 1 không sửa.
+  - Cả hai phiên bản đều nằm trong lịch sử commit (bản 1 ở commit `Thêm sweep, compare, pred_B, ref_B`, bản 2 ở commit `Day 14: bài nộp`). Mục 1 không sửa.
 
 ## 4. Tập B
 
