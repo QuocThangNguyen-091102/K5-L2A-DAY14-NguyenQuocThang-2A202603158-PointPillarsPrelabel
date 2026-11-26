@@ -106,13 +106,13 @@ Ngoài pre-label PointPillars của lab, tôi dùng các công cụ sau để t�
    - Với hộp ghép được, chỉ sửa đúng thuộc tính sai: lớp, tâm lệch trên 0,3 m, hướng lệch trên 10° hoặc ngược đầu, kích thước ngoài dung sai guideline, đáy hộp.
    - `ref_A.json` và `ref_B.json` sau đó được xuất bằng đúng lệnh `scripts/vf_cvat.py reference` của lab. Số hộp khớp số Items trên CVAT.
 3. 
-   - Đề xuất được vẽ lên 7 camera bằng `tools/d14_render.py` và soát cả 15 frame.
+  - Đề xuất được vẽ lên 7 camera bằng `tools/d14_render.py` và soát cả 15 frame.
    - Lần soát này phát hiện các lỗi của bộ lọc và tôi đã sửa luật: van xanh bị loại nhầm ở s05f43, xe buýt bị loại nhầm ở s01f13, người đi xe máy bị loại nhầm ở s03f06, Bus/Truck giả trên bồn cây ở s03f33 và s04f54, người giả ở thân cây ở s03f53.
    - Ba trường hợp được thêm hoặc xóa tay, có lý do và tọa độ trong `tools/d14_manual_review.json`: thêm công nhân ở s04f54, thêm người ở nhà chờ xe buýt và xóa hộp Car bao nhà chờ ở s01f13, thêm xe ben (Truck) ở s05f15.
 4. **Kiểm định và giới hạn của công cụ.**
    - Trước khi dùng cho Day 14, tôi thử công cụ trên 10 frame tôi đã gán nhãn ở bài lab trước (Day 13). Bản chưa lọc trùng gần như toàn bộ nhãn cũ đó (chi phí 3,2), vì nhãn cũ cũng làm từ chính model này. Phép thử này vòng tròn, không chứng minh độ đúng.
    - Khi soát ảnh, tôi thấy nhãn cũ ở bài trước còn giữ nhiều Truck giả trên hàng cây, ví dụ ở s02f46. Vì vậy tôi không dùng nó làm thước đo cho Day 14, và bộ lọc mới loại thêm các hộp đó.
-
+Những tool này tôi tải về mà tự viết script để chạy tool cho bài tập này 
 ## 7. Điểm cộng
 
 ### Hướng 2: PointPillars chạy trong CVAT (Nuclio), đã chạy được
