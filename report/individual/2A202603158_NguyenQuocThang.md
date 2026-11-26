@@ -79,7 +79,7 @@ Số đo từ `scripts/pp_prelabel.py --frames d14_2A202603158/frames_B.txt --co
 
 - **Chỉ 3 frame tune**, cùng kiểu đường đô thị nhiều cây xanh. Leave-one-out ổn định nhưng chỉ dựa trên 3 điểm dữ liệu. Mức giảm trên tập B (22%) thấp hơn tập A (32%), đúng như lo ngại về overfit lên tập nhỏ.
 - **Model học trên KITTI.** KITTI chỉ có camera phía trước, LiDAR 64 tia và 3 lớp. Model không biết Truck/Bus, bỏ sót nhiều Pedestrian/Cyclist và ước xe ngắn hơn xe thật. Tune ngưỡng chỉ giảm được việc xóa. Phần thêm (90 hộp ở B, chiếm 60% chi phí) không tham số hậu xử lý nào sửa được.
-- **Chi phí là công thức `0.3·xóa + 1.0·thêm + 0.5·sửa`, không phải thời gian sửa thật.** Tôi không đo thời gian, nên không quy đổi ra giờ công. "Giảm 32%/22%" chỉ là giảm theo công thức này, trên đúng các frame này.
+- **Chi phí là công thức `0.3·xóa + 1.0·thêm + 0.5·sửa`, không phải thời gian sửa thật.** Phần bắt buộc không đo thời gian sửa. Phiên đo thử ở mục 7 chỉ dài khoảng 4,6 phút, quá nhỏ để quy đổi ra giờ công. "Giảm 32%/22%" chỉ là giảm theo công thức này, trên đúng các frame này.
 - **Nhãn tham chiếu không phải ground truth.** Nhãn được tạo bằng một model thứ hai kèm luật lọc và soát ảnh (mục 6). Vì vậy số xóa/thêm/sửa phản ánh khoảng cách giữa PointPillars và nhãn của tôi, có lẫn sai số của chính nhãn đó.
   - Ví dụ: số lượt "sửa kích thước" phụ thuộc quy ước chiều dài hộp. Tôi giữ chiều dài dài hơn vì khớp kích thước công bố của các mẫu xe nhận ra được trên camera, nhưng chưa đối chiếu với nhãn chuẩn của coach.
 - **Ngưỡng 50 m và vật thưa điểm.** Một số vật gần 50 m hoặc thưa điểm được ghi là chưa chắc. Theo guideline mục 4, các trường hợp đó là:
@@ -96,7 +96,7 @@ Số đo từ `scripts/pp_prelabel.py --frames d14_2A202603158/frames_B.txt --co
 Ngoài pre-label PointPillars của lab, tôi dùng các công cụ sau để tạo đề xuất sửa nhãn trên CVAT. Mã nguồn nằm trong `tools/` của repo này.
 
 1. **`tools/d14_autoref.py`: model thứ hai, độc lập với PointPillars-KITTI.**
-   - Dùng CenterPoint pillar (nuScenes, trọng số mmdet3d viết lại bằng PyTorch thuần, tôi đã dùng ở Day 13). Model nhìn 360°, có lớp truck/bus/pedestrian/bicycle/motorcycle, chạy kèm TTA lật trục.
+   - Dùng CenterPoint pillar (nuScenes, trọng số mmdet3d viết lại bằng PyTorch thuần). Đây là công cụ tôi tự viết từ bài lab trước (Day 13), nay dùng lại cho Day 14. Model nhìn 360°, có lớp truck/bus/pedestrian/bicycle/motorcycle, chạy kèm TTA lật trục.
    - Ghép ±3 frame lân cận bằng ICP để sửa hướng theo chuyển động, lấy kích thước trung vị và loại hộp chỉ xuất hiện 1 lần.
    - Kéo đáy hộp về mặt đường.
    - Lọc theo hình dạng điểm: hàng cây và lan can (điểm chạy liên tục ra ngoài hộp, tán cây phía trên), thân cây giả người, Bus/Truck thấp hoặc mỏng. Lớp được chỉnh theo bảng 4.3: Bus ngắn hơn 9,5 m thành Truck, Car cao hơn 2,2 m thành Truck.
@@ -110,8 +110,8 @@ Ngoài pre-label PointPillars của lab, tôi dùng các công cụ sau để t�
    - Lần soát này phát hiện các lỗi của bộ lọc và tôi đã sửa luật: van xanh bị loại nhầm ở s05f43, xe buýt bị loại nhầm ở s01f13, người đi xe máy bị loại nhầm ở s03f06, Bus/Truck giả trên bồn cây ở s03f33 và s04f54, người giả ở thân cây ở s03f53.
    - Ba trường hợp được thêm hoặc xóa tay, có lý do và tọa độ trong `tools/d14_manual_review.json`: thêm công nhân ở s04f54, thêm người ở nhà chờ xe buýt và xóa hộp Car bao nhà chờ ở s01f13, thêm xe ben (Truck) ở s05f15.
 4. **Kiểm định và giới hạn của công cụ.**
-   - Trên 10 frame Day 13 của tôi, bản chưa lọc của công cụ trùng gần như toàn bộ bảng A Day 13 (chi phí 3,2), vì bảng A Day 13 cũng làm từ chính model này. Phép kiểm định này vòng tròn, không chứng minh độ đúng.
-   - Khi soát ảnh, tôi thấy bảng A Day 13 còn giữ nhiều Truck giả trên hàng cây, ví dụ ở s02f46. Vì vậy tôi không dùng nó làm thước đo, và bộ lọc mới loại thêm các hộp đó.
+   - Trước khi dùng cho Day 14, tôi thử công cụ trên 10 frame tôi đã gán nhãn ở bài lab trước (Day 13). Bản chưa lọc trùng gần như toàn bộ nhãn cũ đó (chi phí 3,2), vì nhãn cũ cũng làm từ chính model này. Phép thử này vòng tròn, không chứng minh độ đúng.
+   - Khi soát ảnh, tôi thấy nhãn cũ ở bài trước còn giữ nhiều Truck giả trên hàng cây, ví dụ ở s02f46. Vì vậy tôi không dùng nó làm thước đo cho Day 14, và bộ lọc mới loại thêm các hộp đó.
 
 ## 7. Điểm cộng
 
